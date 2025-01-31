@@ -1,0 +1,24 @@
+---
+HeaderFilterRegex: include
+FormatStyle: google
+Checks: >
+  bugprone-*,
+  clang-analyzer-*,
+  google-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -google-readability-todo,
+  -misc-non-private-member-variables-in-classes,
+  -modernize-use-emplace,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-function-cognitive-complexity,
+  -bugprone-easily-swappable-parameters,
+CheckOptions:
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: fmt/printf.h;fmt/chrono.h;bits/ranges_algo.h
+  - key: modernize-use-ranges.UseReversePipe
+    value: true

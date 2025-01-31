@@ -1,0 +1,8 @@
+CompileFlags:
+  CompilationDatabase: "build/debug"
+
+---
+If:
+  PathMatch: bindings/.*
+CompileFlags:
+  CompilationDatabase: "build/bindings"

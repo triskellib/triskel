@@ -1,0 +1,14 @@
+[build-system]
+requires = [
+    "setuptools",
+    "scikit-build>=0.13",
+    "cmake",
+    "ninja",
+    "wheel",
+    "cibuildwheel",
+]
+build-backend = "setuptools.build_meta"
+
+
+[tool.cibuildwheel]
+manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64"  # Use a newer manylinux image

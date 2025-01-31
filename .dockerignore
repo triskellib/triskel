@@ -1,0 +1,14 @@
+.github
+.vscode/
+.venv/
+build/
+
+makefile
+
+*.ini
+
+triskel-bench
+triskel-image
+triskel-gui
+
+*.csv
