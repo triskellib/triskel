@@ -1,8 +1,8 @@
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/triskellib/triskel/blob/master/.github/assets/triskel_dark.svg?raw=true">
-  <source media="(prefers-color-scheme: light)" srcset="https://github.com/triskellib/triskel/blob/master/.github/assets/triskel_light.svg?raw=true">
-  <img width="50%" alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://github.com/triskellib/triskel/blob/master/.github/assets/triskel_light.svg?raw=true">
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/triskellib/triskel/blob/master/.github/assets/triskel_dark.png?raw=true">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/triskellib/triskel/blob/master/.github/assets/triskel_light.png?raw=true">
+  <img width="50%" alt="Shows a black logo in light color mode and a white one in dark color mode." src="https://github.com/triskellib/triskel/blob/master/.github/assets/triskel_light.png?raw=true">
 </picture>
 </p>
 
@@ -178,3 +178,6 @@ You can download the python bindings using pip:
 ```
 $ pip install pytriskel
 ```
+
+## Contact
+- Discord: [Triskel](https://discord.gg/zgBb5VUKKS)
