@@ -97,12 +97,6 @@ LLVMCFG::LLVMCFG(llvm::Function* function)
             } else if (child == false_edge) {
                 edge_types.set(edge, EdgeType::False);
             }
-
-            if (child == &block) {
-                // FIXME: Add support in the split long edges
-                throw std::invalid_argument(
-                    "self loops are currently not supported");
-            }
         }
     }
 

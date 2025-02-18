@@ -73,6 +73,32 @@ struct SugiyamaAnalysis : public ILayout {
     NodeAttribute<float> xs_;
     NodeAttribute<float> ys_;
 
+    struct Padding {
+        float top;
+        float bottom;
+
+        float left;
+        float right;
+
+        [[nodiscard]] auto width() const -> float { return left + right; }
+
+        [[nodiscard]] auto height() const -> float { return top + bottom; }
+
+        [[nodiscard]] static auto all(float padding) -> Padding {
+            return {padding, padding, padding, padding};
+        }
+
+        [[nodiscard]] static auto horizontal(float padding) -> Padding {
+            return {0.0F, 0.0F, padding, padding};
+        }
+
+        [[nodiscard]] static auto vertical(float padding) -> Padding {
+            return {padding, padding, 0.0F, 0.0F};
+        }
+    };
+
+    NodeAttribute<Padding> paddings_;
+
     // Priorities in the coordinate assignment
     NodeAttribute<uint8_t> priorities_;
 
@@ -85,6 +111,11 @@ struct SugiyamaAnalysis : public ILayout {
 
     // Ensures the order on each layer has nodes 1 unit from each other
     void normalize_order();
+
+    std::vector<EdgeId> self_loops_;
+    void remove_self_loop(const Edge& edge);
+
+    void draw_self_loops();
 
     void cycle_removal();
 

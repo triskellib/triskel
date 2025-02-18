@@ -90,6 +90,7 @@ SugiyamaAnalysis::SugiyamaAnalysis(IGraph& g,
       waypoints_(g, {}),
       widths_(widths),
       heights_(heights),
+      paddings_(g, Padding::horizontal(X_GUTTER)),
       xs_(g, 0.0F),
       ys_(g, 0.0F),
       edge_waypoints_(g, {}),
@@ -148,7 +149,8 @@ SugiyamaAnalysis::SugiyamaAnalysis(IGraph& g,
 
     ge.pop();
 
-    init_node_layers();
+    // Fix the self loops
+    draw_self_loops();
 
     // Remove the "kink" in the back edges from the ghost nodes
     for (auto eid : deleted_edges_) {
@@ -171,6 +173,56 @@ SugiyamaAnalysis::SugiyamaAnalysis(IGraph& g,
     }
 }
 
+// We want to resize the node to take into account the edge
+void SugiyamaAnalysis::remove_self_loop(const Edge& edge) {
+    const auto& node = edge.to();
+
+    // Change the padding to account for the new edge
+    auto& padding = paddings_.get(node);
+    padding.right += X_GUTTER;
+    padding.top += EDGE_HEIGHT;
+    padding.bottom += EDGE_HEIGHT;
+
+    self_loops_.push_back(edge);
+
+    g.editor().remove_edge(edge);
+}
+
+void SugiyamaAnalysis::draw_self_loops() {
+    for (auto eid : self_loops_) {
+        const auto& edge = g.get_edge(eid);
+        const auto& node = edge.from();
+
+        const auto width  = widths_.get(node);
+        const auto height = heights_.get(node);
+
+        // Revert the changes to the height and width
+        auto& padding = paddings_.get(node);
+        padding.right -= X_GUTTER;
+        padding.top -= EDGE_HEIGHT;
+        padding.bottom -= EDGE_HEIGHT;
+
+        // Translate the node down
+        const auto x = xs_.get(node);
+        auto& y      = ys_.get(node);
+
+        auto top_x =
+            x + (width / static_cast<float>(node.parent_edges().size() + 1) *
+                 static_cast<float>(node.parent_edges().size()));
+        auto bottom_x =
+            x + (width / static_cast<float>(node.child_edges().size() + 1) *
+                 static_cast<float>(node.child_edges().size()));
+
+        waypoints_.set(
+            edge, {{.x = bottom_x, .y = y + height},
+                   {.x = bottom_x, .y = y + height + EDGE_HEIGHT},
+                   {.x = x + width + X_GUTTER, .y = y + height + EDGE_HEIGHT},
+                   {.x = x + width + X_GUTTER, .y = y - EDGE_HEIGHT},
+                   {.x = top_x, .y = y - EDGE_HEIGHT},
+                   {.x = top_x, .y = y}});
+    }
+}
+
 // The idea of this function is to reverse each backedge
 // However if the backedge is from a node to itself, we have to remove that
 // edge
@@ -180,8 +232,9 @@ void SugiyamaAnalysis::cycle_removal() {
 
     for (const auto& edge : g.edges()) {
         if (dfs.is_backedge(edge)) {
+            // Self loop
             if (edge.to() == edge.from()) {
-                ge.remove_edge(edge);
+                remove_self_loop(edge);
                 continue;
             }
 
@@ -428,7 +481,7 @@ auto SugiyamaAnalysis::min_x(std::vector<Node>& nodes, size_t id) -> float {
     auto w        = 0.0F;
 
     for (size_t i = id - 1; i < id; --i) {
-        w += widths_.get(nodes[i]) + X_GUTTER;
+        w += widths_.get(nodes[i]) + paddings_.get(nodes[i]).width();
 
         // Nodes are laid out left to right so we also care about equal
         // priority nodes
@@ -437,7 +490,7 @@ auto SugiyamaAnalysis::min_x(std::vector<Node>& nodes, size_t id) -> float {
         }
     }
     // The left gutter of this block
-    w += X_GUTTER;
+    w += paddings_.get(nodes[id]).left;
 
     return w;
 }
@@ -446,7 +499,7 @@ auto SugiyamaAnalysis::max_x(std::vector<Node>& nodes,
                              size_t id,
                              float graph_width) -> float {
     auto priority = priorities_.get(nodes[id]);
-    auto w        = widths_.get(nodes[id]) + X_GUTTER;
+    auto w        = widths_.get(nodes[id]) + paddings_.get(nodes[id]).right;
 
     for (size_t i = id + 1; i < nodes.size(); ++i) {
         // Nodes are laid out left to right so we only care about higher
@@ -455,7 +508,7 @@ auto SugiyamaAnalysis::max_x(std::vector<Node>& nodes,
             return xs_.get(nodes[i]) - w;
         }
 
-        w += widths_.get(nodes[i]) + X_GUTTER;
+        w += widths_.get(nodes[i]) + paddings_.get(nodes[i]).width();
     }
     assert(graph_width >= w);
     return graph_width - w;
@@ -541,10 +594,10 @@ auto SugiyamaAnalysis::compute_graph_width() -> float {
     auto graph_width = 0.0F;
 
     for (const auto& layer : node_layers_) {
-        auto layer_width = X_GUTTER;
+        auto layer_width = 0.0F;
 
         for (const auto& node : layer) {
-            layer_width += widths_.get(node) + X_GUTTER;
+            layer_width += widths_.get(node) + paddings_.get(node).width();
         }
 
         graph_width = std::max(graph_width, layer_width);
@@ -580,7 +633,9 @@ auto SugiyamaAnalysis::compute_graph_height() -> float {
         auto nodes = g.nodes() | layer_view(layer) |
                      std::ranges::to<std::vector<Node>>();
         for (const auto& node : nodes) {
-            layer_height = std::max(layer_height, heights_.get(node));
+            layer_height =
+                std::max(layer_height,
+                         heights_.get(node) + paddings_.get(node).height());
             layer_gap +=
                 static_cast<float>(node.child_edges().size()) * EDGE_HEIGHT;
         }
@@ -613,11 +668,13 @@ void SugiyamaAnalysis::x_coordinate_assignment() {
             return orders_.get(a) < orders_.get(b);
         });
 
-        auto x = X_GUTTER;
+        auto x = 0.0F;
 
         for (const auto& node : nodes) {
+            auto& padding = paddings_.get(node);
+            x += padding.left;
             xs_.set(node, x);
-            x += widths_.get(node) + X_GUTTER;
+            x += widths_.get(node) + padding.right;
         }
     }
 
@@ -725,18 +782,6 @@ void SugiyamaAnalysis::waypoint_creation() {
             }
         }
 
-        // SPECIAL HANDLING OF EXIT NODE
-        for (auto exit_pair : exits) {
-            auto edge = io_edges_[exit_pair];
-            if (start_x_offset_.get(edge) < 0) {
-                continue;
-            }
-
-            auto& waypoints = waypoints_.get(edge);
-            waypoints[0].x  = start_x_offset_.get(edge);
-            waypoints[1].x  = start_x_offset_.get(edge);
-        }
-
         // ENTRY EDGES
         for (const auto& node : nodes) {
             auto edges = node.parent_edges();
@@ -785,24 +830,12 @@ void SugiyamaAnalysis::waypoint_creation() {
                 x += spacer;
             }
         }
-
-        // SPECIAL HANDLING OF Entry NODE
-        for (auto entry_pair : exits) {
-            auto edge = io_edges_[entry_pair];
-
-            if (end_x_offset_.get(edge) < 0) {
-                continue;
-            }
-
-            auto& waypoints = waypoints_.get(edge);
-            waypoints[2].x  = end_x_offset_.get(edge);
-            waypoints[3].x  = end_x_offset_.get(edge);
-        }
     }
 }
 
 // Consider edges are overlapping if they are too close
-float TOLERANCE = 10.0F;
+// This works well, but also doubles the amount of crossings
+float TOLERANCE = 0.0F;
 
 // Use dynamic programming to determine edge heights
 //

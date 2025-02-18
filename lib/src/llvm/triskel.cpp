@@ -65,12 +65,6 @@ auto triskel::make_layout(llvm::Function* function,
             }
 
             builder->make_edge(node, child_node, type);
-
-            if (child == &block) {
-                // FIXME: Add support in the split long edges
-                throw std::invalid_argument(
-                    "self loops are currently not supported");
-            }
         }
     }
 

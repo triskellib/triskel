@@ -32,7 +32,7 @@
 using triskel::Point;
 
 DEFINE_uint64(max_nodes,
-              200,
+              1000,
               "Functions with more than `max_nodes` nodes will be skipped");
 
 DEFINE_string(out_dir, ".", "The location the csv will be saved at");

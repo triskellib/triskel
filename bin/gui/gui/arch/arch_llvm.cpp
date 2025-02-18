@@ -38,7 +38,8 @@ struct LLVMArch : public Arch {
     auto select_function(const std::string& name, triskel::Renderer& renderer)
         -> std::unique_ptr<triskel::CFGLayout> override {
         auto* f = m->getFunction(name);
-        fmt::print("Selecting function {}\n", f->getName().str());
+        fmt::print("Selecting function {} ({} blocks)\n", f->getName().str(),
+                   f->size());
         return triskel::make_layout(f, &renderer);
     }
 
