@@ -7,8 +7,9 @@ makefile
 
 
 triskel-bench
-triskel-image
+triskel-img
 triskel-gui
 
 *.csv
 *.ini
+out.*

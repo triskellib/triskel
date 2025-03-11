@@ -11,6 +11,7 @@
 #include "triskel/graph/graph.hpp"
 #include "triskel/graph/igraph.hpp"
 #include "triskel/graph/subgraph.hpp"
+#include "triskel/layout/phantom_nodes.hpp"
 #include "triskel/layout/sugiyama/sugiyama.hpp"
 #include "triskel/utils/attribute.hpp"
 #include "triskel/utils/constants.hpp"

@@ -835,7 +835,7 @@ void SugiyamaAnalysis::waypoint_creation() {
 
 // Consider edges are overlapping if they are too close
 // This works well, but also doubles the amount of crossings
-float TOLERANCE = 0.0F;
+float TOLERANCE = 10.0F;
 
 // Use dynamic programming to determine edge heights
 //

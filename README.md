@@ -61,15 +61,15 @@ layout.save(png_renderer, "out.png")
 #include <triskel/triskel.hpp>
 
 int main(void) {
-    auto renderer = triskel::make_svg_renderer();
-
     auto builder  = triskel::make_layout_builder();
 
-    auto n1 = builder.make_node(*renderer, "Hello");
-    auto n2 = builder.make_node(*renderer, "World");
-    builder.make_edge(n1, n2)
+    auto n1 = builder->make_node("Hello");
+    auto n2 = builder->make_node("World");
+    builder->make_edge(n1, n2)
 
-    auto layout   = builder.build();
+    auto renderer = triskel::make_svg_renderer();
+    builder->measure_nodes(renderer)
+    auto layout   = builder->build();
 
     layout->render_and_save(*renderer, "./out.svg");
 
@@ -79,7 +79,7 @@ int main(void) {
 
 ## Compilation
 
-Triskel relies on the following dependencies (the provided binaries have their own dependencies)
+Triskel relies on the following dependencies (the provided binaries also have their own dependencies)
 
 - [fmt](https://github.com/fmtlib/fmt)
 
@@ -100,7 +100,7 @@ target_link_libraries(foo PRIVATE triskel)
 
 ### CMake options
 
-To compile with all options and dependencies check the [dockerfile](https://github.com/triskellib/triskel/tree/master/docker/fedora).
+To compile with all options and external dependencies check the [dockerfile](https://github.com/triskellib/triskel/tree/master/docker/fedora).
 
 #### `ENABLE_LLVM`
 

@@ -92,5 +92,3 @@ endif()
 
 add_subdirectory(bin)
 add_subdirectory(lib)
-
-add_compile_options(-O3)
