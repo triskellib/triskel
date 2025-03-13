@@ -77,23 +77,23 @@ auto DFS::nodes() -> std::vector<Node> {
     return g_.get_nodes(nodes_);
 }
 
-auto DFS::is_tree(const Edge& e) -> bool {
+auto DFS::is_tree(EdgeId e) const -> bool {
     return types_.get(e) == EdgeType::Tree;
 }
 
-auto DFS::is_backedge(const Edge& e) -> bool {
+auto DFS::is_backedge(EdgeId e) const -> bool {
     return types_.get(e) == EdgeType::Back;
 }
 
-auto DFS::is_forward(const Edge& e) -> bool {
+auto DFS::is_forward(EdgeId e) const -> bool {
     return types_.get(e) == EdgeType::Forward;
 }
 
-auto DFS::is_cross(const Edge& e) -> bool {
+auto DFS::is_cross(EdgeId e) const -> bool {
     return types_.get(e) == EdgeType::Cross;
 }
 
-auto DFS::dump_type(const Edge& e) const -> std::string {
+auto DFS::dump_type(EdgeId e) const -> std::string {
     switch (types_.get(e)) {
         case EdgeType::None:
             return "None";
@@ -108,6 +108,6 @@ auto DFS::dump_type(const Edge& e) const -> std::string {
     }
 }
 
-auto DFS::dfs_num(const Node& n) -> size_t {
+auto DFS::dfs_num(NodeId n) const -> size_t {
     return dfs_nums_.get(n);
 }

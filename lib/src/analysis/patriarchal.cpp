@@ -65,9 +65,13 @@ auto Patriarchal::parents(const Node& n) -> std::vector<Node> {
 }
 
 auto Patriarchal::parent(const Node& n) -> Node {
-    auto& parents = parents_.get(n);
+    return g_.get_node(parent(n.id()));
+}
+
+auto Patriarchal::parent(const NodeId& n) const -> NodeId {
+    const auto& parents = parents_.get(n);
     assert(parents.size() == 1);
-    return g_.get_node(parents.front());
+    return parents.front();
 }
 
 auto Patriarchal::children(const Node& n) -> std::vector<Node> {

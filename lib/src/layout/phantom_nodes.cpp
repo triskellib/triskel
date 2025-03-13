@@ -17,6 +17,7 @@
 #include <fmt/ranges.h>
 
 #include "triskel/analysis/dfs.hpp"
+#include "triskel/analysis/lengauer_tarjan.hpp"
 #include "triskel/graph/igraph.hpp"
 #include "triskel/utils/attribute.hpp"
 
@@ -24,90 +25,6 @@
 using namespace triskel;
 
 namespace {
-
-using DomList = NodeAttribute<std::set<NodeId>>;
-using IDom    = NodeAttribute<NodeId>;
-
-auto domination_analysis(const IGraph& g) -> DomList {
-    const auto& nodes = g.nodes();
-
-    auto all_nodes = std::set<NodeId>{};
-
-    for (const auto& node : nodes) {
-        all_nodes.insert(node);
-    }
-
-    auto dom = DomList{nodes.size(), all_nodes};
-
-    dom.set(g.root(), std::set<NodeId>{g.root()});
-
-    bool changes = true;
-
-    while (changes) {
-        changes = false;
-        for (const auto& node : nodes) {
-            if (node.is_root()) {
-                continue;
-            }
-
-            const auto& parents = node.parent_nodes();
-
-            std::set<NodeId> parent_intersection;
-
-            if (parents.size() == 1) {
-                parent_intersection = dom.get(parents.front());
-            } else if (parents.size() == 2) {
-                std::ranges::set_intersection(
-                    dom.get(parents.front()), dom.get(parents.back()),
-                    std::inserter(parent_intersection,
-                                  parent_intersection.begin()));
-            } else {
-                parent_intersection = dom.get(parents.front());
-
-                for (const auto& parent : parents | std::views::drop(1)) {
-                    std::set<NodeId> tmp;
-                    std::ranges::set_intersection(
-                        parent_intersection, dom.get(parent),
-                        std::inserter(tmp, tmp.begin()));
-                    parent_intersection = std::move(tmp);
-                }
-            }
-
-            parent_intersection.insert(node);
-
-            if (dom.get(node).size() != parent_intersection.size()) {
-                dom.set(node, parent_intersection);
-                changes = true;
-            }
-        }
-    }
-
-    return std::move(dom);
-}
-
-auto idom_analysis(const IGraph& g, DomList& dom) -> IDom {
-    const auto& nodes = g.nodes();
-    auto idom         = IDom(nodes.size(), NodeId::InvalidID);
-
-    for (const auto& node : nodes) {
-        if (node.is_root()) {
-            idom.set(node, NodeId::InvalidID);
-            continue;
-        }
-
-        auto& doms = dom.get(node);
-        auto sz    = doms.size();
-
-        for (const auto& d : doms) {
-            if (dom.get(d).size() == sz - 1) {
-                idom.set(node, d);
-                break;
-            }
-        }
-    }
-
-    return std::move(idom);
-}
 
 using DFSNums = NodeAttribute<std::vector<size_t>>;
 
@@ -201,28 +118,28 @@ struct RTree {
     RTree() = default;
 
     // Insert a list into the radix tree
-    void insert(const Node& n, const std::span<size_t>& dfsnums) {
+    void insert(const Node& n, const std::span<size_t>& keys) {
         auto* cursor = &root;
 
         size_t i = 0;
 
-        while (i < dfsnums.size()) {
-            auto key = dfsnums[i];
+        while (i < keys.size()) {
+            auto key = keys[i];
 
             if (!cursor->children.contains(key)) {
                 // create a new node
-                cursor->new_child(n, dfsnums.subspan(i));
+                cursor->new_child(n, keys.subspan(i));
                 return;
             }
 
             cursor = cursor->children[key].get();
 
             auto& radix = cursor->radix;
-            if (starts_with(dfsnums.subspan(i), radix)) {
+            if (starts_with(keys.subspan(i), radix)) {
                 i += radix.size();
             } else {
                 // Split the node
-                cursor->split(n, dfsnums.subspan(i));
+                cursor->split(n, keys.subspan(i));
                 return;
             }
         }
@@ -264,12 +181,12 @@ struct RTree {
 };
 
 // Split the entry edges using a radix tree
-void split_node(IGraph& graph, Node& node, DFSNums& dfs_nums) {
+void split_node(IGraph& graph, Node& node, DFSNums& keys) {
     auto& editor = graph.editor();
     auto rtree   = RTree{};
 
     for (const auto& parent : node.parent_nodes()) {
-        rtree.insert(parent, dfs_nums.get(parent));
+        rtree.insert(parent, keys[parent]);
     }
 
     std::map<size_t, NodeId> rnode_to_graph;
@@ -310,11 +227,11 @@ void split_node(IGraph& graph, Node& node, DFSNums& dfs_nums) {
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-auto make_dfsnums(NodeId root,
-                  NodeAttribute<std::vector<size_t>>& dfsnums,
-                  IDom& idoms,
-                  NodeId node) -> std::vector<size_t> {
-    auto& nums = dfsnums.get(node);
+auto make_keys(NodeId root,
+               NodeAttribute<std::vector<size_t>>& keys,
+               NodeAttribute<NodeId>& idoms,
+               NodeId node) -> std::vector<size_t> {
+    auto& nums = keys[node];
 
     if (!nums.empty()) {
         return nums;
@@ -324,8 +241,8 @@ auto make_dfsnums(NodeId root,
         return nums;
     }
 
-    auto idom     = idoms.get(node);
-    auto previous = make_dfsnums(root, dfsnums, idoms, idom);
+    auto idom     = idoms[node];
+    auto previous = make_keys(root, keys, idoms, idom);
     nums          = std::vector<size_t>(previous);
     nums.push_back(static_cast<size_t>(idom));
 
@@ -335,22 +252,20 @@ auto make_dfsnums(NodeId root,
 }  // namespace
 
 void triskel::create_phantom_nodes(IGraph& g) {
-    auto dom = domination_analysis(g);
-
-    auto idoms = idom_analysis(g, dom);
+    auto idoms = make_idoms(g);
 
     const auto& nodes = g.nodes();
-    auto dfsnums      = NodeAttribute<std::vector<size_t>>{nodes.size(), {}};
+    auto keys         = NodeAttribute<std::vector<size_t>>{nodes.size(), {}};
 
     for (const auto& node : nodes) {
-        make_dfsnums(g.root(), dfsnums, idoms, node);
+        make_keys(g.root(), keys, idoms, node);
     }
 
     auto& editor = g.editor();
 
     for (auto& node : g.nodes()) {
         if (node.parent_nodes().size() >= 3) {
-            split_node(g, node, dfsnums);
+            split_node(g, node, keys);
             continue;
         }
         if (node.child_edges().size() > 1 && node.parent_edges().size() > 1) {
@@ -364,6 +279,4 @@ void triskel::create_phantom_nodes(IGraph& g) {
             editor.make_edge(parent, node);
         }
     }
-
-    fmt::print("Added fantom nodes\n");
 }

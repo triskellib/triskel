@@ -3,4 +3,5 @@ target_sources(triskel PRIVATE
   patriarchal.cpp
   sese.cpp
   udfs.cpp
+  lengauer_tarjan.cpp
 )

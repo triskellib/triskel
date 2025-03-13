@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <map>
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 #include <llvm/IR/CFG.h>
@@ -29,12 +28,8 @@ auto triskel::make_layout(llvm::Function* function,
             content += triskel::to_string(insn) + "\n";
         }
 
-        size_t node;
-        if (render != nullptr) {
-            node = builder->make_node(*render, content);
-        } else {
-            node = builder->make_node(content);
-        }
+        auto node = builder->make_node(content);
+
         // Adds the block to the maps
         reverse_map.insert_or_assign(&block, node);
     }
@@ -66,6 +61,10 @@ auto triskel::make_layout(llvm::Function* function,
 
             builder->make_edge(node, child_node, type);
         }
+    }
+
+    if (render != nullptr) {
+        builder->measure_nodes(*render);
     }
 
     return builder->build();

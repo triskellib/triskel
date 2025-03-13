@@ -18,6 +18,10 @@ struct Patriarchal {
     /// If this node has multiple parents raises an error
     [[nodiscard]] auto parent(const Node& n) -> Node;
 
+    /// @brief Gets this node's only parent.
+    /// If this node has multiple parents raises an error
+    [[nodiscard]] auto parent(const NodeId& n) const -> NodeId;
+
     /// @brief Gets this node's children
     [[nodiscard]] auto children(const Node& n) -> std::vector<Node>;
 

@@ -25,7 +25,6 @@ struct Attribute {
 
     /// @brief Get by reference
     template <typename U = T>
-
     [[nodiscard]] auto get(const Identifiable<Tag>& n)
         -> T& requires(!std::is_same_v<U, bool>) { return get(n.id()); }
 
@@ -66,6 +65,22 @@ struct Attribute {
         auto id_ = static_cast<size_t>(id);
         resize_if_necessary(id_);
         return data_[id_];
+    }
+
+    template <typename U = T>
+    [[nodiscard]] auto operator[](const ID<Tag>& id)
+        -> T& requires(!std::is_same_v<U, bool>) { return get(id); }
+
+    [[nodiscard]] auto operator[](const ID<Tag>& id) ->
+        typename std::vector<bool>::reference
+        requires(std::is_same_v<T, bool>)
+    {
+        return get(id);
+    }
+
+    template <typename U = T>
+    [[nodiscard]] auto operator[](const ID<Tag>& id) const -> ConstRef {
+        return get(id);
     }
 
     void set(const ID<Tag>& id, T v) {
