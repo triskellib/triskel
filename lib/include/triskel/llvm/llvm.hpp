@@ -9,7 +9,8 @@
 #include "triskel/utils/attribute.hpp"
 
 namespace triskel {
-auto to_string(const llvm::Value& v) -> std::string;
+auto to_string(const llvm::Value& v,
+               llvm::ModuleSlotTracker* MST = nullptr) -> std::string;
 
 /// @brief LLVM support for libfmt
 auto format_as(const llvm::Value& v) -> std::string;

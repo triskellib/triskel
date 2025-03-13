@@ -9,11 +9,14 @@
 #include <llvm/IR/Instructions.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#include "llvm/IR/ModuleSlotTracker.h"
 
 #include "triskel/llvm/llvm.hpp"
 
 auto triskel::make_layout(llvm::Function* function,
-                          Renderer* render) -> std::unique_ptr<CFGLayout> {
+                          Renderer* render,
+                          llvm::ModuleSlotTracker* MST)
+    -> std::unique_ptr<CFGLayout> {
     auto builder = make_layout_builder();
 
     // Important, otherwise the CFGs are not necessarily well defined
@@ -25,7 +28,7 @@ auto triskel::make_layout(llvm::Function* function,
         auto content = std::string{};
 
         for (const auto& insn : block) {
-            content += triskel::to_string(insn) + "\n";
+            content += triskel::to_string(insn, MST) + "\n";
         }
 
         auto node = builder->make_node(content);

@@ -230,10 +230,12 @@ struct ImguiRenderer : Renderer {
 
 #ifdef TRISKEL_LLVM
 #include <llvm/IR/Function.h>
+#include "llvm/IR/ModuleSlotTracker.h"
 
 namespace triskel {
 [[nodiscard]] auto make_layout(llvm::Function* function,
-                               Renderer* render = nullptr)
+                               Renderer* render             = nullptr,
+                               llvm::ModuleSlotTracker* MST = nullptr)
     -> std::unique_ptr<CFGLayout>;
 }  // namespace triskel
 #endif

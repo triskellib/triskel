@@ -22,6 +22,7 @@
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#include "llvm/IR/ModuleSlotTracker.h"
 
 #include "src/table.hpp"
 #include "triskel/triskel.hpp"
@@ -315,7 +316,8 @@ auto write_str_to_file(const std::string& path, const std::string& data) {
 
 auto run_on_function(llvm::Function& function,
                      size_t& errors,
-                     size_t& skipped) -> std::optional<Stats> {
+                     size_t& skipped,
+                     llvm::ModuleSlotTracker& MST) -> std::optional<Stats> {
     if (function.isDeclaration()) {
         return {};
     }
@@ -339,7 +341,7 @@ auto run_on_function(llvm::Function& function,
     const auto start = high_resolution_clock::now();
 
     try {
-        layout = triskel::make_layout(&function);
+        layout = triskel::make_layout(&function, nullptr, &MST);
     } catch (std::invalid_argument&) {
         errors++;
         return {};
@@ -363,7 +365,8 @@ auto run_on_function(llvm::Function& function,
     };
 }
 
-auto run_on_module(llvm::Module& module) -> std::vector<Stats> {
+auto run_on_module(llvm::Module& module,
+                   llvm::ModuleSlotTracker& MST) -> std::vector<Stats> {
     fmt::print("Running on module: {}\n", module.getName().str());
 
     auto stats = std::vector<Stats>{};
@@ -381,7 +384,7 @@ auto run_on_module(llvm::Module& module) -> std::vector<Stats> {
     bar.start();
     for (auto& function : module) {
         bar.draw();
-        auto stat = run_on_function(function, errors, skipped);
+        auto stat = run_on_function(function, errors, skipped, MST);
         if (stat.has_value()) {
             intersections += stat->nb_intersections;
             overlaps += stat->nb_overlaps;
@@ -424,13 +427,14 @@ auto main(int argc, char** argv) -> int {
     llvm::LLVMContext ctx;
 
     auto module = load_module_from_path(ctx, argv[1]);
+    auto MST    = llvm::ModuleSlotTracker{module.get()};
 
     if (argc == 3) {
         auto* function = module->getFunction(argv[2]);
         size_t errors  = 0;
         size_t skipped = 0;
 
-        auto stat = run_on_function(*function, errors, skipped);
+        auto stat = run_on_function(*function, errors, skipped, MST);
 
         if (stat.has_value()) {
             fmt::print("{}\n", stats_to_csv({*stat}));
@@ -439,7 +443,7 @@ auto main(int argc, char** argv) -> int {
         return 0;
     }
 
-    auto stats = run_on_module(*module);
+    auto stats = run_on_module(*module, MST);
 
     auto path = std::filesystem::path{argv[1]};
     auto ext  = std::filesystem::path{"csv"};

@@ -38,10 +38,15 @@ auto truncate_str(const std::string& str,
 
 }  // namespace
 
-auto triskel::to_string(const llvm::Value& v) -> std::string {
+auto triskel::to_string(const llvm::Value& v,
+                        llvm::ModuleSlotTracker* MST) -> std::string {
     std::string s;
     ::llvm::raw_string_ostream os{s};
-    v.print(os);
+    if (MST != nullptr) {
+        v.print(os, *MST);
+    } else {
+        v.print(os);
+    }
 
     s = truncate_str(os.str());
 
