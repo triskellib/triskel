@@ -15,4 +15,10 @@ endif()
 if(BUILD_GUI)
     message(STATUS "Building triskel-gui")
     add_subdirectory(gui)
+    endif()
+
+if (BUILD_WASM)
+    message(STATUS "Building triskel-wasm")
+    add_subdirectory(wasm)
 endif()
+

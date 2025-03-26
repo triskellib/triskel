@@ -6,3 +6,9 @@ If:
   PathMatch: bindings/.*
 CompileFlags:
   CompilationDatabase: "build/bindings"
+
+---
+If:
+  PathMatch: bin/wasm/.*
+CompileFlags:
+  CompilationDatabase: "build/wasm"
