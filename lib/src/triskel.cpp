@@ -250,6 +250,8 @@ struct LayoutBuilderImpl : LayoutBuilder {
         return layout;
     }
 
+    auto graphviz() const -> std::string override { return format_as(*graph_); }
+
     std::unique_ptr<Graph> graph_;
 
     NodeAttribute<std::string> labels_;

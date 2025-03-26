@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdlib>
 #include <memory>
 #include <ranges>
+#include <stdexcept>
 #include <vector>
 
 #include "triskel/analysis/udfs.hpp"
@@ -36,6 +38,9 @@ void push(BracketList& bl, Bracket e) {
 }
 
 auto top(BracketList& bl) -> Bracket {
+    if (bl.empty()) {
+        throw std::runtime_error("EMPTY BL");
+    }
     return bl.back();
 }
 
@@ -153,7 +158,13 @@ void SESE::preprocess_graph() {
         }
     }
 
-    ge.make_edge(exit, g_.root());
+    // The graph is already strongly connected
+    // TODO: FIX THIS
+    if (exit.parent_edges().empty()) {
+        ge.remove_node(exit);
+    } else {
+        ge.make_edge(exit, g_.root());
+    }
 }
 
 auto SESE::is_backedge_stating_from(const Edge& edge,

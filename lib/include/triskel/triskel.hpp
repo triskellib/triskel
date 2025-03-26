@@ -183,6 +183,9 @@ struct LayoutBuilder {
     /// @return The id of the edge in the graph
     virtual auto make_edge(size_t from, size_t to, EdgeType type) -> size_t = 0;
 
+    /// @brief Returns a graphviz representation of the graph
+    [[nodiscard]] virtual auto graphviz() const -> std::string = 0;
+
     /// @brief Lays out the CFG
     [[nodiscard]] virtual auto build() -> std::unique_ptr<CFGLayout> = 0;
 };

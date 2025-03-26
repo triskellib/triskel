@@ -340,12 +340,7 @@ auto run_on_function(llvm::Function& function,
 
     const auto start = high_resolution_clock::now();
 
-    try {
-        layout = triskel::make_layout(&function, nullptr, &MST);
-    } catch (std::invalid_argument&) {
-        errors++;
-        return {};
-    }
+    layout = triskel::make_layout(&function, nullptr, &MST);
 
     const auto elapsed    = high_resolution_clock::now() - start;
     const auto elapsed_ms = duration_cast<milliseconds>(elapsed).count();
@@ -377,6 +372,7 @@ auto run_on_module(llvm::Module& module,
     size_t intersections = 0;
     size_t overlaps      = 0;
     size_t segments      = 0;
+    size_t heights       = 0;
 
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -389,6 +385,7 @@ auto run_on_module(llvm::Module& module,
             intersections += stat->nb_intersections;
             overlaps += stat->nb_overlaps;
             segments += stat->nb_segments;
+            heights += stat->height;
             stats.push_back(*stat);
         };
     }
@@ -399,13 +396,14 @@ auto run_on_module(llvm::Module& module,
     std::locale::global(std::locale("en_US.UTF-8"));
 
     fmt::print("\n\nSummary:\n\n");
-    print_table(Entry("Functions", stats.size(), "{:L}"),       //
-                Entry("Skipped", skipped, "{:L}"),              //
-                Entry("Errors", errors, "{:L}"),                //
-                Entry("Time", elapsed, "{:.0%M:%S}"),           //
-                Entry("Segments", segments, "{:L}"),            //
-                Entry("Intersections", intersections, "{:L}"),  //
-                Entry("Overlaps", overlaps, "{:L}")             //
+    print_table(Entry("Functions", stats.size(), "{:L}"),        //
+                Entry("Skipped", skipped, "{:L}"),               //
+                Entry("Errors", errors, "{:L}"),                 //
+                Entry("Time", elapsed, "{:.0%M:%S}"),            //
+                Entry("Segments", segments, "{:L}"),             //
+                Entry("Intersections", intersections, "{:L}"),   //
+                Entry("Overlaps", overlaps, "{:L}"),             //
+                Entry("Height", heights / stats.size(), "{:L}")  //
     );
 
     return stats;
