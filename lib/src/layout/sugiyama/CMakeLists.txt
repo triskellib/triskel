@@ -1,7 +1,7 @@
 target_sources(triskel
 PRIVATE
   network_simplex.cpp
-  sugyiama.cpp
+  sugiyama.cpp
   vertex_ordering.cpp
   tamassia.cpp
 )

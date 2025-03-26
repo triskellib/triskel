@@ -77,6 +77,39 @@ int main(void) {
 }
 ```
 
+## Theory
+
+Triskel is the implementation for the paper [Towards better CFG layouts](https://hal.science/hal-04996939).
+
+The key idea behind Triskel is to split the CFG into Single Entry Single Exit regions.
+We are then able to layout each region taking advantage of a divide and conquer approach.
+
+## Walkthrough
+
+Initially we have a directed graph
+
+![Directed graph](.github/assets/graph1_dark.png)
+
+The first step involves identifying Single Entry Single Exit (SESE) regions. (See the implementation here: [sese.cpp](https://github.com/triskellib/triskel/blob/master/lib/src/analysis/sese.cpp))
+In the diagram, the region is in blue. Notice how a single edge enters and exits the blue border.
+
+![SESE region identification](.github/assets/graph2_dark.png)
+
+We can then split each region out of the graph. At this step we have multiple smaller directed graphs.
+Note that how in the graph of the SESE region, we had to add 2 virtual nodes to represent the entry and exit points.
+In the other graph, we added an additional node to represent the region (still in blue).
+
+![Splitting the graph](.github/assets/graph3_dark.png)
+
+The next step involves laying out each SESE region's graph using Sugiyama algorithm (See the implementation here: [sugiyama.cpp](https://github.com/triskellib/triskel/blob/master/lib/src/layout/sugiyama/sugiyama.cpp)).
+Note how we have to layout the SESE region first in order to know the coordinates of the blue node.
+
+![Divide and conquer](.github/assets/graph4_dark.png)
+
+Finally, we can superimpose the layouts to obtain the final layout.
+
+![Final layout](.github/assets/graph5_dark.png)
+
 ## Compilation
 
 Triskel relies on the following dependencies (the provided binaries also have their own dependencies)
@@ -181,3 +214,18 @@ $ pip install pytriskel
 
 ## Contact
 - Discord: [Triskel](https://discord.gg/zgBb5VUKKS)
+
+## Cite Triskel
+```bibtex
+@inproceedings{royer:hal-04996939,
+  AUTHOR = {Royer, Jack and Tronel, Fr{\'e}d{\'e}ric and Vin{\c c}ont, Ya{\"e}lle},
+  TITLE = {{Towards Better CFG Layouts}},
+  BOOKTITLE = {{Workshop on Binary Analysis Research 2025}},
+  ADDRESS = {San Diego (CA), United States},
+  MONTH = Feb,
+  YEAR = {2025},
+  URL = {https://hal.science/hal-04996939},
+  DOI = {10.14722/bar.2025.23011},
+}
+```
+
