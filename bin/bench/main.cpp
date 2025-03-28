@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include <fmt/base.h>
 #include <fmt/chrono.h>
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -380,6 +381,7 @@ auto run_on_module(llvm::Module& module,
     bar.start();
     for (auto& function : module) {
         bar.draw();
+        fmt::print("{}\n", function.getName().str());
         auto stat = run_on_function(function, errors, skipped, MST);
         if (stat.has_value()) {
             intersections += stat->nb_intersections;

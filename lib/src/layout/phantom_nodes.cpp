@@ -268,6 +268,7 @@ void triskel::create_phantom_nodes(IGraph& g) {
             split_node(g, node, keys);
             continue;
         }
+
         if (node.child_edges().size() > 1 && node.parent_edges().size() > 1) {
             // Create a single parent for this node
             auto parent = editor.make_node();

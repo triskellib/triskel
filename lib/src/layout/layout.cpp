@@ -11,7 +11,6 @@
 #include "triskel/graph/graph.hpp"
 #include "triskel/graph/igraph.hpp"
 #include "triskel/graph/subgraph.hpp"
-#include "triskel/layout/phantom_nodes.hpp"
 #include "triskel/layout/sugiyama/sugiyama.hpp"
 #include "triskel/utils/attribute.hpp"
 #include "triskel/utils/constants.hpp"
@@ -36,13 +35,7 @@ Layout::Layout(Graph& g,
       widths_(widths)
 
 {
-    // g.editor().push();
-
-    // Add fake nodes to help sese
-    // create_phantom_nodes(g);
-
     sese_ = std::make_unique<SESE>(g);
-    // g.editor().pop();
 
     remove_small_regions();
 

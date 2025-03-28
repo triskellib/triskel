@@ -1,4 +1,5 @@
 #include "triskel/analysis/sese.hpp"
+#include <fmt/base.h>
 
 #include <algorithm>
 #include <cassert>
@@ -12,6 +13,7 @@
 #include "triskel/analysis/udfs.hpp"
 #include "triskel/graph/graph.hpp"
 #include "triskel/graph/igraph.hpp"
+#include "triskel/layout/phantom_nodes.hpp"
 #include "triskel/utils/attribute.hpp"
 #include "triskel/utils/tree.hpp"
 
@@ -38,9 +40,6 @@ void push(BracketList& bl, Bracket e) {
 }
 
 auto top(BracketList& bl) -> Bracket {
-    if (bl.empty()) {
-        throw std::runtime_error("EMPTY BL");
-    }
     return bl.back();
 }
 
@@ -143,26 +142,60 @@ SESE::SESE(Graph& g)
     construct_program_structure_tree(g.root(), &root_region, visited);
 }
 
-void SESE::preprocess_graph() {
-    auto& ge = g_.editor();
-
-    auto exit = ge.make_node();
-
-    for (const auto& node : g_.nodes()) {
-        if (node == exit) {
-            continue;
-        }
-
-        if (node.child_edges().empty()) {
-            ge.make_edge(node, exit);
+// One needs to exist!
+auto get_new_sink(const IGraph& g, const NodeAttribute<bool>& visited) -> Node {
+    for (const auto& node : g.nodes()) {
+        if (!visited[node]) {
+            return node;
         }
     }
 
-    // The graph is already strongly connected
-    // TODO: FIX THIS
-    if (exit.parent_edges().empty()) {
-        ge.remove_node(exit);
-    } else {
+    throw std::runtime_error("All the nodes are visited");
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+void reaches_exit_backwards(NodeAttribute<bool>& visited,
+                            size_t& visited_count,
+                            const Node& node) {
+    visited.set(node, true);
+    visited_count += 1;
+
+    size_t children_count = 0;
+    for (const auto& child : node.parent_nodes()) {
+        if (!visited[child]) {
+            reaches_exit_backwards(visited, visited_count, child);
+        }
+    }
+}
+
+void SESE::preprocess_graph() {
+    // create_phantom_nodes(g_);
+
+    auto& ge = g_.editor();
+
+    auto visited         = NodeAttribute<bool>{g_, false};
+    size_t visited_count = 0;
+
+    reaches_exit_backwards(visited, visited_count, g_.root());
+
+    const auto node_count = g_.node_count();
+    if (visited_count != node_count) {
+        auto exit = ge.make_node();
+
+        for (const auto& node : g_.nodes()) {
+            if (node.child_nodes().empty() && node != exit) {
+                ge.make_edge(node, exit);
+                reaches_exit_backwards(visited, visited_count, node);
+            }
+        }
+
+        while (visited_count != node_count + 1) {
+            const auto sink = get_new_sink(g_, visited);
+            ge.make_edge(sink, exit);
+            reaches_exit_backwards(visited, visited_count, sink);
+        }
+
+        assert(!exit.parent_nodes().empty());
         ge.make_edge(exit, g_.root());
     }
 }
