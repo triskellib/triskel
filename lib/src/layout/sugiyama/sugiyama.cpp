@@ -1,5 +1,5 @@
-#include "triskel/layout/sugiyama/layer_assignement.hpp"
 #include "triskel/layout/sugiyama/sugiyama.hpp"
+#include "triskel/layout/sugiyama/layer_assignement.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -113,7 +113,7 @@ SugiyamaAnalysis::SugiyamaAnalysis(IGraph& g,
 
     layer_assignment();
 
-    slide_nodes();
+    // slide_nodes();
 
     ensure_io_at_extremities();
 
