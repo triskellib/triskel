@@ -12,4 +12,6 @@ triskel-gui
 
 *.csv
 *.ini
-out.*
+out.*__pycache__/
+dist/
+wheelhouse/

@@ -1,0 +1,126 @@
+name: Wheels
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish artifacts to PyPI using trusted publishing"
+        type: boolean
+        default: false
+
+# Automatically cancel previous runs of this workflow on the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sdist:
+    name: source distribution
+    # Skip pull requests from this repository; the branch push already builds them.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install sdist tools
+        run: python -m pip install --upgrade build twine
+
+      - name: Build sdist
+        run: python -m build --sdist
+
+      - name: Check sdist metadata
+        run: python -m twine check dist/*.tar.gz
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+
+  test-wheel:
+    name: test + wheel (${{ matrix.name }})
+    # Skip pull requests from this repository; the branch push already builds them.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            os: ubuntu-24.04
+            cibw-platform: linux
+            cibw-archs: x86_64
+          - name: linux-aarch64
+            os: ubuntu-24.04-arm
+            cibw-platform: linux
+            cibw-archs: aarch64
+          - name: macos-arm64
+            os: macos-15
+            cibw-platform: macos
+            cibw-archs: arm64
+            macos-deployment-target: "15.0"
+          - name: macos-x86_64
+            os: macos-15-intel
+            cibw-platform: macos
+            cibw-archs: x86_64
+            macos-deployment-target: "15.0"
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel and run tests
+        uses: pypa/cibuildwheel@v3.4.1
+        env:
+          CIBW_PLATFORM: ${{ matrix.cibw-platform }}
+          CIBW_ARCHS: ${{ matrix.cibw-archs }}
+
+          # macOS builds run directly on the hosted runner. Cairo comes from
+          # Homebrew, whose bottles target the runner's OS version; delocate
+          # bundles libcairo (and its dependencies) into the wheel.
+          CIBW_BEFORE_ALL_MACOS: brew install cairo
+          CIBW_ENVIRONMENT_MACOS: >-
+            MACOSX_DEPLOYMENT_TARGET="${{ matrix.macos-deployment-target }}"
+
+      - name: Check wheel metadata
+        shell: bash
+        run: python -m pip install twine && twine check wheelhouse/*.whl
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ matrix.name }}
+          path: wheelhouse/*.whl
+
+  publish:
+    name: publish to PyPI
+    needs: [sdist, test-wheel]
+    runs-on: ubuntu-24.04
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish distributions
+        uses: pypa/gh-action-pypi-publish@release/v1
