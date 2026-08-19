@@ -146,7 +146,9 @@ struct CairoRenderer : public ExportingRenderer {
         int width,
         int height) -> std::shared_ptr<cairo_surface_t> {
         return {
-            cairo_svg_surface_create(path.c_str(), width, height),
+            // path.string() (not c_str()) because path::value_type is
+            // wchar_t on Windows while cairo expects const char*
+            cairo_svg_surface_create(path.string().c_str(), width, height),
             [](cairo_surface_t* surface) { cairo_surface_destroy(surface); }};
     }
 
@@ -184,7 +186,7 @@ struct CairoPNGRenderer : CairoRenderer {
         cairo_set_source_surface(png_cr.get(), surface.get(), 0, 0);
         cairo_paint(png_cr.get());
 
-        cairo_surface_write_to_png(png_surface.get(), path.c_str());
+        cairo_surface_write_to_png(png_surface.get(), path.string().c_str());
     };
 };
 
