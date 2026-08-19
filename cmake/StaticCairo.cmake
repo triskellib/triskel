@@ -45,9 +45,25 @@ target_include_directories(cairo SYSTEM INTERFACE
 )
 target_compile_options(cairo INTERFACE ${Cairo_STATIC_CFLAGS_OTHER})
 
-# The archives in dependency order; the remaining flags carry e.g. macOS
-# -framework options
+# Group the two-token "-framework Foo" flags (macOS) with SHELL: so
+# CMake's link option de-duplication cannot collapse the repeated
+# -framework tokens into "-framework Foo Bar"
+set(Cairo_LINK_OPTIONS "")
+set(Cairo_PENDING_FRAMEWORK FALSE)
+foreach(flag IN LISTS Cairo_STATIC_LDFLAGS_OTHER)
+  if(flag STREQUAL "-framework")
+    set(Cairo_PENDING_FRAMEWORK TRUE)
+  elseif(Cairo_PENDING_FRAMEWORK)
+    list(APPEND Cairo_LINK_OPTIONS "SHELL:-framework ${flag}")
+    set(Cairo_PENDING_FRAMEWORK FALSE)
+  else()
+    list(APPEND Cairo_LINK_OPTIONS "${flag}")
+  endif()
+endforeach()
+
+# The archives in dependency order; the remaining flags carry e.g. the
+# macOS framework options
 target_link_libraries(cairo INTERFACE ${Cairo_RESOLVED_LIBRARIES})
-target_link_options(cairo INTERFACE ${Cairo_STATIC_LDFLAGS_OTHER})
+target_link_options(cairo INTERFACE ${Cairo_LINK_OPTIONS})
 
 message(STATUS "Static cairo ${Cairo_VERSION}: ${Cairo_RESOLVED_LIBRARIES}")
