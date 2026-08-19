@@ -58,8 +58,3 @@ build-verbosity = 1
 manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
 test-command = "python {project}/bindings/python/test_wheel.py"
-
-[tool.cibuildwheel.linux]
-# Cairo is needed to build the PNG/SVG renderers; auditwheel bundles
-# libcairo (and its dependencies) into the wheel afterwards
-before-all = "dnf install -y cairo-devel"

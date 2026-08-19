@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <ranges>
 #include <string>
@@ -15,6 +16,19 @@
 using namespace triskel;
 
 namespace {
+
+/// Cairo stream callback writing to a std::ofstream. Writing through a
+/// stream instead of cairo's file APIs keeps paths that are not
+/// representable in the narrow execution charset working on Windows.
+auto write_to_stream(void* closure,
+                     const unsigned char* data,
+                     unsigned int length) -> cairo_status_t {
+    auto* out = static_cast<std::ofstream*>(closure);
+    out->write(reinterpret_cast<const char*>(data),
+               static_cast<std::streamsize>(length));
+    return out->good() ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
+}
+
 struct CairoRenderer : public ExportingRenderer {
     CairoRenderer() {
         text_surface = make_image_surface(CAIRO_FORMAT_ARGB32, 1, 1);
@@ -141,14 +155,13 @@ struct CairoRenderer : public ExportingRenderer {
             [](cairo_surface_t* surface) { cairo_surface_destroy(surface); }};
     }
 
-    [[nodiscard]] static auto make_svg_surface(
-        const std::filesystem::path& path,
-        int width,
-        int height) -> std::shared_ptr<cairo_surface_t> {
+    [[nodiscard]] static auto make_svg_surface(std::ofstream& out,
+                                               int width,
+                                               int height)
+        -> std::shared_ptr<cairo_surface_t> {
         return {
-            // path.string() (not c_str()) because path::value_type is
-            // wchar_t on Windows while cairo expects const char*
-            cairo_svg_surface_create(path.string().c_str(), width, height),
+            cairo_svg_surface_create_for_stream(&write_to_stream, &out, width,
+                                                height),
             [](cairo_surface_t* surface) { cairo_surface_destroy(surface); }};
     }
 
@@ -186,7 +199,9 @@ struct CairoPNGRenderer : CairoRenderer {
         cairo_set_source_surface(png_cr.get(), surface.get(), 0, 0);
         cairo_paint(png_cr.get());
 
-        cairo_surface_write_to_png(png_surface.get(), path.string().c_str());
+        auto out = std::ofstream{path, std::ios::binary};
+        cairo_surface_write_to_png_stream(png_surface.get(), &write_to_stream,
+                                          &out);
     };
 };
 
@@ -195,8 +210,12 @@ struct CairoSVGRenderer : CairoRenderer {
         cairo_rectangle_t extents;
         cairo_recording_surface_get_extents(surface.get(), &extents);
 
+        // Declared before the surface: the surface flushes to the stream
+        // when it is destroyed, so it must be destroyed first
+        auto out = std::ofstream{path, std::ios::binary};
+
         auto svg_surface =
-            make_svg_surface(path, static_cast<int>(extents.width),
+            make_svg_surface(out, static_cast<int>(extents.width),
                              static_cast<int>(extents.height));
         auto svg_cr = make_cairo(svg_surface.get());
 
