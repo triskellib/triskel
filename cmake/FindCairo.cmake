@@ -39,7 +39,9 @@ find_library(Cairo_LIBRARY cairo HINTS ${Cairo_PKG_LIBRARY_DIRS})
 set(Cairo cairo)
 
 if(Cairo_LIBRARY)
-  add_library(${Cairo} SHARED IMPORTED)
+  # UNKNOWN (not SHARED): on Windows the found library is an import .lib,
+  # which a SHARED imported target would reject without IMPORTED_IMPLIB
+  add_library(${Cairo} UNKNOWN IMPORTED)
   set_property(TARGET ${Cairo} PROPERTY IMPORTED_LOCATION "${Cairo_LIBRARY}")
   set_property(TARGET ${Cairo} PROPERTY INTERFACE_COMPILE_OPTIONS "${Cairo_PKG_CFLAGS_OTHER}")
 
