@@ -8,10 +8,14 @@ triplet="$1"
 if [ -d /opt/python ]; then
     # manylinux container: install the tools vcpkg and meson need, and put a
     # modern python on PATH (meson needs >= 3.7, the el8 system python is 3.6)
+    # autotools are for vcpkg's gperf port (a fontconfig build dependency);
     # fontconfig/dejavu are not build dependencies: they give the container
     # the font configuration a normal Linux system has, so the wheel smoke
     # test exercises text measuring like an end-user machine would
-    dnf install -y -q zip unzip tar perl pkgconf-pkg-config fontconfig dejavu-sans-fonts
+    dnf install -y -q epel-release || true
+    dnf install -y -q zip unzip tar perl pkgconf-pkg-config \
+        autoconf autoconf-archive automake libtool \
+        fontconfig dejavu-sans-fonts
     export PATH="/opt/python/cp312-cp312/bin:${PATH}"
     export VCPKG_DEFAULT_BINARY_CACHE="${VCPKG_DEFAULT_BINARY_CACHE:-/project/vcpkg-archives}"
     if [ "$(uname -m)" != x86_64 ]; then
@@ -19,9 +23,13 @@ if [ -d /opt/python ]; then
         export VCPKG_FORCE_SYSTEM_BINARIES=1
         pip install -q cmake ninja
     fi
-elif [ "$(uname)" = Darwin ] && ! command -v pkg-config >/dev/null; then
-    # CMake reads the static link information through pkg-config
-    brew install pkgconf
+elif [ "$(uname)" = Darwin ]; then
+    # autotools are for vcpkg's gperf port (a fontconfig build dependency)
+    brew install autoconf autoconf-archive automake libtool
+    if ! command -v pkg-config >/dev/null; then
+        # CMake reads the static link information through pkg-config
+        brew install pkgconf
+    fi
 fi
 
 export VCPKG_DEFAULT_BINARY_CACHE="${VCPKG_DEFAULT_BINARY_CACHE:-${PWD}/vcpkg-archives}"
