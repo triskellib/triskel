@@ -60,8 +60,13 @@ if(Cairo_LIBRARY)
     unset(Cairo_VERSION_MINOR)
     unset(Cairo_VERSION_MICRO)
 
-    list(APPEND Cairo_INCLUDE_DIRS ${Cairo_INCLUDE_DIR})
-    set_property(TARGET ${Cairo} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${Cairo_INCLUDE_DIR}")
+    # Also expose the parent directory (e.g. /opt/homebrew/include) so the
+    # <cairo/cairo.h> include form works even when the install prefix is not
+    # a default compiler search path (such as Homebrew on Apple Silicon).
+    get_filename_component(Cairo_PARENT_INCLUDE_DIR "${Cairo_INCLUDE_DIR}" DIRECTORY)
+
+    list(APPEND Cairo_INCLUDE_DIRS ${Cairo_INCLUDE_DIR} ${Cairo_PARENT_INCLUDE_DIR})
+    set_property(TARGET ${Cairo} PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${Cairo_INCLUDE_DIR};${Cairo_PARENT_INCLUDE_DIR}")
   endif()
 endif()
 
