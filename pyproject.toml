@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pytriskel"
-version = "0.3.0"
+version = "0.3.2"
 description = "CFG visualization library"
 readme = "bindings/python/README.md"
 license = "MPL-2.0"
