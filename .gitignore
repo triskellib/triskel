@@ -13,3 +13,8 @@ triskel-gui
 *.csv
 *.ini
 out.*
+
+__pycache__/
+dist/
+wheelhouse/
+vcpkg-archives/

@@ -4,6 +4,8 @@ Python bindings for the [triskel](https://github.com/triskellib/triskel) library
 
 ## Getting started
 
+Requires Python 3.12+ (the wheels target the stable ABI, so a single wheel works on every later Python version). The package ships with auto-generated type stubs.
+
 ```
 $ pip install pytriskel
 ```

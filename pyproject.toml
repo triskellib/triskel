@@ -1,0 +1,60 @@
+[build-system]
+requires = ["scikit-build-core >=0.11", "nanobind >=2.12.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pytriskel"
+version = "0.3.0"
+description = "CFG visualization library"
+readme = "bindings/python/README.md"
+license = "MPL-2.0"
+authors = [{ name = "Jack Royer", email = "jack.royer@inria.fr" }]
+keywords = ["cfg", "visualization", "reverse-engineering"]
+requires-python = ">=3.12"
+dependencies = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+    "Topic :: Software Development :: Disassemblers",
+]
+
+[project.urls]
+Homepage = "https://github.com/triskellib/triskel"
+
+[tool.scikit-build]
+# Protect the configuration against future changes in scikit-build-core
+minimum-version = "build-system.requires"
+
+# Setuptools-style build caching in a local directory
+build-dir = "build/{wheel_tag}"
+
+# Only build the extension and its generated stubs (pulls in the pytriskel
+# module and the triskel static library as dependencies)
+build.targets = ["pytriskel_stub"]
+
+# Only install the python component; the repository's other install rules
+# (static library, binaries) must not end up in the wheel
+install.components = ["python"]
+
+# Build stable ABI wheels for CPython 3.12+
+wheel.py-api = "cp312"
+
+# Do not auto-copy Python packages into wheels; the package is installed by CMake
+wheel.packages = []
+
+[tool.scikit-build.cmake]
+version = ">=3.30"
+
+[tool.scikit-build.cmake.define]
+ENABLE_CAIRO = "ON"
+BUILD_BINDINGS = "ON"
+ENABLE_LLVM = "OFF"
+ENABLE_IMGUI = "OFF"
+
+[tool.cibuildwheel]
+build = "cp312-*"
+skip = "*-musllinux_*"
+build-verbosity = 1
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+test-command = "python {project}/bindings/python/test_wheel.py"

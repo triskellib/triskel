@@ -1,0 +1,201 @@
+name: Wheels
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish artifacts to PyPI using trusted publishing"
+        type: boolean
+        default: false
+
+env:
+  VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+
+# Automatically cancel previous runs of this workflow on the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sdist:
+    name: source distribution
+    # Skip pull requests from this repository; the branch push already builds them.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Verify release tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          package_version="$(
+            python -c \
+              'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])'
+          )"
+
+          expected_tag="v${package_version}"
+
+          if [[ "${GITHUB_REF_NAME}" != "${expected_tag}" ]]; then
+            echo "::error::Release tag '${GITHUB_REF_NAME}' does not match '${expected_tag}'"
+            exit 1
+          fi
+
+      - name: Install sdist tools
+        run: python -m pip install --upgrade build twine
+
+      - name: Build sdist
+        run: python -m build --sdist
+
+      - name: Check sdist metadata
+        run: python -m twine check dist/*.tar.gz
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+
+  test-wheel:
+    name: test + wheel (${{ matrix.name }})
+    # Skip pull requests from this repository; the branch push already builds them.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            os: ubuntu-24.04
+            cibw-platform: linux
+            cibw-archs: x86_64
+            vcpkg-triplet: x64-linux
+          - name: linux-aarch64
+            os: ubuntu-24.04-arm
+            cibw-platform: linux
+            cibw-archs: aarch64
+            vcpkg-triplet: arm64-linux
+          - name: macos-arm64
+            os: macos-15
+            cibw-platform: macos
+            cibw-archs: arm64
+            vcpkg-triplet: arm64-osx
+            macos-deployment-target: "15.0"
+          - name: macos-x86_64
+            os: macos-15-intel
+            cibw-platform: macos
+            cibw-archs: x86_64
+            vcpkg-triplet: x64-osx
+            macos-deployment-target: "15.0"
+          - name: windows-x86_64
+            os: windows-latest
+            cibw-platform: windows
+            cibw-archs: AMD64
+            vcpkg-triplet: x64-windows-static-md
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Setup MSVC
+        if: runner.os == 'Windows'
+        uses: TheMrMilchmann/setup-msvc-dev@v4.0.0
+        with:
+          arch: x64
+
+      # Cairo (and its dependencies) are linked statically into the wheel,
+      # built with vcpkg's static triplets. The binary cache makes re-runs
+      # skip the from-source builds.
+      - name: Cache vcpkg binary archives
+        uses: actions/cache@v5
+        with:
+          path: vcpkg-archives
+          key: vcpkg-cairo-${{ env.VCPKG_COMMIT }}-${{ matrix.name }}
+
+      # On Linux the same script runs inside the manylinux container
+      # (CIBW_BEFORE_ALL_LINUX below); on macOS and Windows it runs here
+      - name: Build static cairo (vcpkg)
+        if: runner.os != 'Linux'
+        shell: bash
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-archives
+        run: bash .github/scripts/vcpkg-cairo.sh ${{ matrix.vcpkg-triplet }}
+
+      - name: Build wheel and run tests
+        uses: pypa/cibuildwheel@v3.4.1
+        env:
+          CIBW_PLATFORM: ${{ matrix.cibw-platform }}
+          CIBW_ARCHS: ${{ matrix.cibw-archs }}
+
+          # Linux builds run inside manylinux containers. /project is the
+          # cibuildwheel mount point for this repository in the container.
+          CIBW_BEFORE_ALL_LINUX: >-
+            bash {project}/.github/scripts/vcpkg-cairo.sh
+            ${{ matrix.vcpkg-triplet }}
+          CIBW_ENVIRONMENT_LINUX: >-
+            PKG_CONFIG_PATH="/root/vcpkg-triskel/installed/${{ matrix.vcpkg-triplet }}/lib/pkgconfig"
+            CMAKE_ARGS="-DTRISKEL_STATIC_CAIRO=ON"
+            VCPKG_DEFAULT_BINARY_CACHE="/project/vcpkg-archives"
+            VCPKG_COMMIT="${{ env.VCPKG_COMMIT }}"
+
+          CIBW_ENVIRONMENT_MACOS: >-
+            MACOSX_DEPLOYMENT_TARGET="${{ matrix.macos-deployment-target }}"
+            PKG_CONFIG_PATH="${{ env.VCPKG_CAIRO_PREFIX }}/lib/pkgconfig"
+            CMAKE_ARGS="-DTRISKEL_STATIC_CAIRO=ON"
+
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            CMAKE_GENERATOR="Ninja"
+            PKG_CONFIG="${{ env.PKG_CONFIG_EXE }}"
+            PKG_CONFIG_PATH="${{ env.VCPKG_CAIRO_PREFIX }}/lib/pkgconfig"
+            CMAKE_ARGS="-DTRISKEL_STATIC_CAIRO=ON"
+          CIBW_BEFORE_BUILD_WINDOWS: pip install delvewheel
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >-
+            delvewheel repair -w {dest_dir} {wheel}
+
+      - name: Check wheel metadata
+        shell: bash
+        run: python -m pip install twine && twine check wheelhouse/*.whl
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ matrix.name }}
+          path: wheelhouse/*.whl
+
+  publish:
+    name: publish to PyPI
+    needs: [sdist, test-wheel]
+    runs-on: ubuntu-24.04
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish distributions
+        uses: pypa/gh-action-pypi-publish@release/v1

@@ -42,7 +42,12 @@ endif()
 
 if (ENABLE_CAIRO)
     message(STATUS "Building with cairo support")
-    include(${PROJECT_SOURCE_DIR}/cmake/FindCairo.cmake)
+    option(TRISKEL_STATIC_CAIRO "Link cairo and its dependencies statically (requires static libraries, e.g. from a vcpkg static triplet)" OFF)
+    if(TRISKEL_STATIC_CAIRO)
+        include(${PROJECT_SOURCE_DIR}/cmake/StaticCairo.cmake)
+    else()
+        include(${PROJECT_SOURCE_DIR}/cmake/FindCairo.cmake)
+    endif()
 endif()
 
 if(ENABLE_LLVM)
