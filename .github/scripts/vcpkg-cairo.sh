@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Builds a static cairo (and its dependencies) with vcpkg, for linking into
-# the pytriskel wheels. Usage: vcpkg-cairo.sh <triplet>
+# the pytriskel wheels. Usage: VCPKG_COMMIT=<sha> vcpkg-cairo.sh <triplet>
+#
+# VCPKG_COMMIT pins the vcpkg (and therefore the cairo) version. The workflow
+# is its single source of truth, since it also keys the binary cache on it.
 set -euo pipefail
 
 triplet="$1"
@@ -35,11 +38,22 @@ fi
 export VCPKG_DEFAULT_BINARY_CACHE="${VCPKG_DEFAULT_BINARY_CACHE:-${PWD}/vcpkg-archives}"
 mkdir -p "${VCPKG_DEFAULT_BINARY_CACHE}"
 
-root="${VCPKG_INSTALLATION_ROOT:-${HOME}/vcpkg}"
-if [ ! -e "${root}/vcpkg" ] && [ ! -e "${root}/vcpkg.exe" ]; then
-    git clone --depth 1 https://github.com/microsoft/vcpkg "${root}"
-    "${root}/bootstrap-vcpkg.sh" -disableMetrics
-fi
+: "${VCPKG_COMMIT:?set VCPKG_COMMIT to the vcpkg commit to build against}"
+
+# Don't inherit GitHub's potentially pre-installed/moving vcpkg checkout.
+# Note that this directory is not cached, so it is fetched from scratch on
+# every run; only the built binaries (VCPKG_DEFAULT_BINARY_CACHE) are cached.
+root="${TRISKEL_VCPKG_ROOT:-${HOME}/vcpkg-triskel}"
+
+rm -rf "${root}"
+git clone \
+    --filter=blob:none \
+    --no-checkout \
+    https://github.com/microsoft/vcpkg \
+    "${root}"
+git -C "${root}" fetch --depth 1 origin "${VCPKG_COMMIT}"
+git -C "${root}" checkout --detach FETCH_HEAD
+"${root}/bootstrap-vcpkg.sh" -disableMetrics
 
 ports=("cairo:${triplet}")
 if [[ "${triplet}" == *windows* ]]; then
